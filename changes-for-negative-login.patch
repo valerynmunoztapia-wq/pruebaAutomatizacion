@@ -1,0 +1,67 @@
+diff --git a/src/test/resources/features/login.feature b/src/test/resources/features/login.feature
+--- a/src/test/resources/features/login.feature
++++ b/src/test/resources/features/login.feature
+@@
+ @testCase_1 @rutaCritica
+ Scenario: Validar login
+   Given abrir el navegador en la url "https://practicetestautomation.com/practice-test-login/"
+   And ingresar el usuario "student"
+   And ingresar la pass "Password123"
+   When presiono el boton Submit
+   Then se valida el mensaje Logged In Successfully
+ 
++  @negative @testCase_3
++  Scenario: Validar login con datos negativos
++    Given abrir el navegador en la url "https://practicetestautomation.com/practice-test-login/"
++    And ingresar el usuario "wronguser"
++    And ingresar la pass "wrongpass"
++    When presiono el boton Submit
++    Then se valida el mensaje Your username is invalid!
++
+diff --git a/src/test/java/ObjectPage/LoginPage.java b/src/test/java/ObjectPage/LoginPage.java
+--- a/src/test/java/ObjectPage/LoginPage.java
++++ b/src/test/java/ObjectPage/LoginPage.java
+@@
+     @FindBy(xpath = "//button[contains(text(),'Submit')]")
+     private WebElement btnSubmit;
+ 
++    @FindBy(xpath = "//*[text() = 'Your username is invalid!']")
++    private WebElement msgUsuarioInvalido;
+@@
+     public void clickBtnSubmit() {
+         try {
+             this.btnSubmit.click();
+         } catch (Exception e) {
+             fail("Error al hacer click en el botón Submit: " + e.getMessage());
+         }
+     }
+ 
++    public void validarMsgUsuarioInvalido(){
++        try {
++            if(this.msgUsuarioInvalido.isDisplayed()){
++                System.out.println("Mensaje de usuario inválido visible");
++            }else{
++                System.out.println("Error al visualizar el mensaje de usuario inválido!");
++            }
++        }catch(Exception e){
++            fail("Error al detectar el mensaje de usuario inválido: "+e.getMessage());
++        }
++    }
+ 
+ }
+ 
+diff --git a/src/test/java/StepDefinition/LoginDefinition.java b/src/test/java/StepDefinition/LoginDefinition.java
+--- a/src/test/java/StepDefinition/LoginDefinition.java
++++ b/src/test/java/StepDefinition/LoginDefinition.java
+@@
+     @When("presiono el boton Submit")
+     public void presionoElBotonSubmit() {
+         loginPage.clickBtnSubmit();
+     }
+-
++    
++    @Then("se valida el mensaje Your username is invalid!")
++    public void seValidaElMensajeUsuarioInvalido() {
++        loginPage.validarMsgUsuarioInvalido();
++    }
+ }
