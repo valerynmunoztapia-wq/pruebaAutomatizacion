@@ -117,13 +117,10 @@ public class MarketplaceDefinition {
     //validar correo
     @When("escribo el correo {string} en {string}")
     public void escriboElCorreo(String correo, String contexto) {
-        if (marketplacePage == null) {
-            marketplacePage = new MarketplacePage();
-        }
         if (contexto.equalsIgnoreCase("login")) {
-            marketplacePage.escribirCorreo(correo); // login
+            marketplacePage.escribirCorreo(correo);
         } else if (contexto.equalsIgnoreCase("checkout")) {
-            marketplacePage.escribirCorreoCheckout(correo); // checkout
+            marketplacePage.escribirCorreoCheckout(correo);
         }
     }
 
@@ -159,17 +156,11 @@ public class MarketplaceDefinition {
 
     @When("presiono continuar")
     public void presionoContinuar() {
-        if (marketplacePage == null) {
-            marketplacePage = new MarketplacePage();
-        }
         marketplacePage.presionarContinuarCheckout();
     }
 
     @When("ingreso al login")
     public void ingresoAlLogin() {
-        if (marketplacePage == null) {
-            marketplacePage = new MarketplacePage();
-        }
         marketplacePage.ingresarAlLogin();
     }
 
@@ -206,9 +197,6 @@ public class MarketplaceDefinition {
 
     @When("selecciono la categoría {string}")
     public void seleccionoLaCategoria(String categoria) {
-        if (marketplacePage == null) {
-            marketplacePage = new MarketplacePage();
-        }
         marketplacePage.cerrarPopup();
         marketplacePage.seleccionarCategoria(categoria);
     }

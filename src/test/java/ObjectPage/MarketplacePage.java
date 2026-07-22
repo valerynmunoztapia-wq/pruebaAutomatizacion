@@ -4,6 +4,7 @@ import Control.BaseController;
 import Control.DriverContext;
 import org.openqa.selenium.WebDriver;
 import java.util.List;
+import java.util.logging.Logger;
 
 import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.WebElement;
@@ -20,6 +21,7 @@ import org.openqa.selenium.*;
 
 
 public class MarketplacePage extends BaseController {
+    private static final Logger logger = Logger.getLogger(MarketplacePage.class.getName());
     private final WebDriver driver;
     private List<WebElement> productos;
     private final WebDriverWait wait;
@@ -27,6 +29,7 @@ public class MarketplacePage extends BaseController {
     private final By sinResultados = By.xpath("//*[contains(text(),'no se encontraron') or contains(text(),'Y no encuentro nada')]");
     private String subtotalAntesAumentar = "";
     private int cantidadAntesAumentar = -1;
+    private String categoriaSeleccionada = "";
 
 
     public MarketplacePage() {
@@ -48,23 +51,37 @@ public class MarketplacePage extends BaseController {
 
     private WebElement obtenerBtnMasCantidad() {
         By[] candidatos = new By[]{
+                // VTEX IO - numeric stepper (namespaces más comunes)
+                By.cssSelector("button[class*='buttonIncrement']"),
+                By.cssSelector("button[class*='Increment']"),
+                By.cssSelector("button[class*='increment']"),
+                // VTEX IO en contenedor minicart
+                By.cssSelector(".vtex-minicart-2-x-minicartProductListContainer button[class*='Increment']"),
+                By.cssSelector(".vtex-minicart-2-x-minicartProductListContainer button[class*='increment']"),
+                // VTEX IO - numeric stepper clásico
                 By.cssSelector(".vtex-minicart-2-x-minicartProductListContainer a.item-quantity-change-increment"),
                 By.cssSelector(".vtex-minicart-2-x-minicartProductListContainer button[data-testid='increment-button']"),
                 By.cssSelector(".vtex-minicart-2-x-minicartProductListContainer button[class*='quantitySelectorIncrease']"),
+                // Sin prefijo de contenedor
                 By.cssSelector("a.item-quantity-change-increment"),
                 By.cssSelector("button[data-testid='increment-button']"),
                 By.cssSelector("button[class*='quantitySelectorIncrease']"),
-                By.xpath("//button[contains(@aria-label,'aumentar') or contains(@aria-label,'Increase')]"),
-                By.xpath("//button[normalize-space(.)='+' or .//span[normalize-space(.)='+']]"),
-                By.xpath("//div[contains(@class,'minicart')]//button[contains(@class,'increase') or contains(@class,'increment')]")
+                // XPath genérico
+                By.xpath("//button[contains(@aria-label,'aumentar') or contains(@aria-label,'Increase') or contains(@aria-label,'increase')]"),
+                By.xpath("//button[normalize-space(text())='+']"),
+                By.xpath("//button[.//span[normalize-space(text())='+']]"),
+                By.xpath("//div[contains(@class,'minicart')]//button[contains(@class,'increase') or contains(@class,'increment') or contains(@class,'Increment')]"),
+                By.xpath("//div[contains(@class,'minicart')]//button[last()]")
         };
         return wait.until(d -> {
             for (By candidato : candidatos) {
                 List<WebElement> elementos = d.findElements(candidato);
                 for (WebElement elemento : elementos) {
-                    if (elemento.isDisplayed() && elemento.isEnabled()) {
-                        return elemento;
-                    }
+                    try {
+                        if (elemento.isDisplayed() && elemento.isEnabled()) {
+                            return elemento;
+                        }
+                    } catch (StaleElementReferenceException ignored) { }
                 }
             }
             return null;
@@ -72,7 +89,7 @@ public class MarketplacePage extends BaseController {
     }
 
     private WebElement obtenerBtnEliminar() {
-        return DriverContext.getDriver().findElement(
+        return this.driver.findElement(
                 By.cssSelector("a.item-link-remove"));
     }
 
@@ -161,7 +178,7 @@ public class MarketplacePage extends BaseController {
             List<WebElement> subtotales = DriverContext.getDriver().findElements(
                     By.xpath("//*[contains(text(),'TOTAL')]"));
             if (subtotales.isEmpty()) {
-                return true;
+                return false;
             }
             String subtotalActual = subtotales.get(0).getText().trim();
             return !subtotalActual.isEmpty()
@@ -247,61 +264,111 @@ public class MarketplacePage extends BaseController {
 
     public void aumentarCantidad() {
         try {
-            wait.until(ExpectedConditions.visibilityOfElementLocated(miniCartContainer));
-            
-            // Intento 1: Aumentar en mini-carrito
+            // Si el mini-carrito se cerró entre pasos, volver a abrirlo
+            if (!estaVisibleMiniCarrito()) {
+                logger.info("Mini-carrito no visible, reabriendo...");
+                irAlMiniCarrito();
+            }
+
+            // Intento 1: Botón + en mini-carrito
             try {
                 int cantidadAntes = obtenerCantidadDetectada();
                 cantidadAntesAumentar = Math.max(cantidadAntes, 1);
-                System.out.println("DEBUG: Cantidad antes: " + cantidadAntes);
-                
-                WebElement btnMasCantidad = obtenerBtnMasCantidad();
-                visualizarElemento(btnMasCantidad, 10);
-                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btnMasCantidad);
-                System.out.println("DEBUG: Click realizado en mini-carrito");
-                
-                // Pequeña pausa para que el DOM se actualice
-                Thread.sleep(800);
-                
+                logger.info("Cantidad antes: " + cantidadAntes);
+
+                WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(10));
+                WebElement btnMasCantidad = null;
+                try {
+                    btnMasCantidad = obtenerBtnMasCantidad();
+                } catch (TimeoutException ignored) {
+                    logger.warning("Botón + no encontrado en mini-carrito, probando input...");
+                }
+
+                if (btnMasCantidad != null) {
+                    visualizarElemento(btnMasCantidad, 10);
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btnMasCantidad);
+                    logger.info("Click en botón + del mini-carrito");
+                } else {
+                    // Intento 1b: Modificar input de cantidad directamente
+                    By inputCantidad = By.cssSelector(
+                            ".vtex-minicart-2-x-minicartProductListContainer input[type='text']," +
+                            ".vtex-minicart-2-x-minicartProductListContainer input[name='quantity']," +
+                            ".vtex-minicart-2-x-minicartProductListContainer input[class*='quantity']");
+                    List<WebElement> inputs = driver.findElements(inputCantidad);
+                    WebElement inputVisible = inputs.stream()
+                            .filter(el -> { try { return el.isDisplayed() && el.isEnabled(); } catch (Exception e2) { return false; } })
+                            .findFirst().orElse(null);
+                    if (inputVisible != null) {
+                        ((JavascriptExecutor) driver).executeScript("arguments[0].value='';", inputVisible);
+                        inputVisible.sendKeys("2");
+                        inputVisible.sendKeys(Keys.ENTER);
+                        logger.info("Cantidad seteada vía input en mini-carrito");
+                    } else {
+                        throw new Exception("No se encontró botón ni input de cantidad en mini-carrito");
+                    }
+                }
+
+                // Esperar a que el DOM refleje el cambio
+                final int cantidadAntesFinal = cantidadAntes;
+                try {
+                    shortWait.until(d -> subtotalCambioDetectado() || obtenerCantidadDetectada() > cantidadAntesFinal);
+                } catch (TimeoutException ignored) { }
+
                 int cantidadDespues = obtenerCantidadDetectada();
-                System.out.println("DEBUG: Cantidad después: " + cantidadDespues);
-                System.out.println("DEBUG: Subtotal cambió: " + subtotalCambioDetectado());
-                
-                // Verificar si cambió o si cambió el subtotal
+                logger.info("Cantidad después: " + cantidadDespues + " | Subtotal cambió: " + subtotalCambioDetectado());
+
                 if (subtotalCambioDetectado() || cantidadDespues > cantidadAntes) {
-                    System.out.println("DEBUG: Incremento detectado en mini-carrito");
+                    logger.info("Incremento detectado en mini-carrito");
                     return;
                 }
             } catch (Exception e1) {
-                System.out.println("DEBUG: Intento en mini-carrito falló: " + e1.getMessage());
-                // Si falla en mini-carrito, ir al carrito completo
+                logger.warning("Intento en mini-carrito falló: " + e1.getMessage());
             }
-            
-            // Intento 2: Ir al carrito completo
-            System.out.println("DEBUG: Intentando en carrito completo");
+
+            // Intento 2: Ir al carrito completo (checkout/#/cart)
+            logger.info("Intentando en carrito completo");
             irAlCarrito();
-            Thread.sleep(500);
-            
+
+            By selectoresIncremento = By.cssSelector(
+                    "a.item-quantity-change-increment," +
+                    "button.item-quantity-change-increment," +
+                    "button[class*='Increment']," +
+                    "button[class*='increment']," +
+                    "button[data-testid='increment-button']");
+
+            WebElement btnCarrito = null;
+            try {
+                btnCarrito = wait.until(ExpectedConditions.elementToBeClickable(selectoresIncremento));
+            } catch (TimeoutException te) {
+                logger.warning("Botón + no encontrado en carrito completo, probando input...");
+            }
+
             int cantidadAntesCarrito = obtenerCantidadDetectada();
             cantidadAntesAumentar = Math.max(cantidadAntesCarrito, 1);
-            System.out.println("DEBUG: Cantidad en carrito antes: " + cantidadAntesCarrito);
-            
-            WebElement btnMasCantidadEnCarrito = wait.until(ExpectedConditions.elementToBeClickable(
-                    By.cssSelector("a.item-quantity-change-increment, button.item-quantity-change-increment")));
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btnMasCantidadEnCarrito);
-            System.out.println("DEBUG: Click realizado en carrito");
-            
-            // Esperar a que se actualice
-            Thread.sleep(1000);
-            
-            int cantidadEnCarritoDespues = obtenerCantidadDetectada();
-            System.out.println("DEBUG: Cantidad en carrito después: " + cantidadEnCarritoDespues);
-            
-        } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            System.out.println("DEBUG: Interrupción en aumentarCantidad");
+
+            if (btnCarrito != null) {
+                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btnCarrito);
+                logger.info("Click en botón + del carrito completo");
+            } else {
+                // Intento 2b: input de cantidad en carrito completo
+                WebElement inputCarrito = wait.until(ExpectedConditions.elementToBeClickable(
+                        By.cssSelector("input.item-quantity-change, input[name='quantity'], input[class*='quantity']")));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].value='';", inputCarrito);
+                inputCarrito.sendKeys("2");
+                inputCarrito.sendKeys(Keys.ENTER);
+                logger.info("Cantidad seteada vía input en carrito completo");
+            }
+
+            final int cantidadAntesCarritoFinal = cantidadAntesCarrito;
+            try {
+                wait.until(d -> obtenerCantidadDetectada() > cantidadAntesCarritoFinal
+                        || subtotalCambioDetectado());
+            } catch (TimeoutException ignored) { }
+
+            logger.info("Cantidad en carrito después: " + obtenerCantidadDetectada());
+
         } catch (Exception e) {
-            System.out.println("DEBUG: Error en aumentarCantidad: " + e.getMessage());
+            logger.severe("Error en aumentarCantidad: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -312,8 +379,13 @@ public class MarketplacePage extends BaseController {
             if (cantidadEsperada < 1) {
                 return false;
             }
+            // Abrir mini-carrito si no está visible (puede que estemos en carrito completo)
             if (!estaVisibleMiniCarrito()) {
-                irAlMiniCarrito();
+                try {
+                    irAlMiniCarrito();
+                } catch (TimeoutException te) {
+                    logger.warning("No se pudo abrir mini-carrito para validar cantidad, continuando con otras estrategias");
+                }
             }
             
             // Estrategia 1: Revisar cantidad numérica
@@ -354,6 +426,22 @@ public class MarketplacePage extends BaseController {
             String badge = normalizarCantidad(obtenerCantidadActual());
             if (coincideCantidad(badge, cantidadEsperada)) {
                 return true;
+            }
+
+            // Estrategia 5: Buscar en página del carrito completo
+            By controlesPaginaCarrito = By.cssSelector(
+                    "input.item-quantity-change, " +
+                    "input[name='quantity'], " +
+                    ".item-quantity-value, " +
+                    "input[class*='quantity']");
+            List<WebElement> controlesCarrito = driver.findElements(controlesPaginaCarrito);
+            for (WebElement control : controlesCarrito) {
+                try {
+                    if (!control.isDisplayed()) continue;
+                    String val = normalizarCantidad(control.getAttribute("value"));
+                    if (val.isEmpty()) val = normalizarCantidad(control.getText());
+                    if (coincideCantidad(val, cantidadEsperada)) return true;
+                } catch (StaleElementReferenceException ignored) { }
             }
 
             return false;
@@ -410,9 +498,7 @@ public class MarketplacePage extends BaseController {
     }
 
     public void escribirCorreoCheckout(String correoCheckout) {
-        WebElement input = obtenerInputCorreo();
-        input.clear();
-        input.sendKeys(correoCheckout);
+        escribirCorreo(correoCheckout);
     }
 
     public void escribirPassword(String password) {
@@ -713,10 +799,12 @@ public class MarketplacePage extends BaseController {
     public boolean validarCategoria() {
         return DriverContext.getDriver()
                 .getCurrentUrl()
-                .contains("guitarras");
+                .toLowerCase()
+                .contains(categoriaSeleccionada.toLowerCase());
     }
 
     public void seleccionarCategoria(String categoria) {
+        this.categoriaSeleccionada = categoria;
         By categoriaLocator = By.xpath("//span[contains(translate(normalize-space(.),'abcdefghijklmnopqrstuvwxyz','ABCDEFGHIJKLMNOPQRSTUVWXYZ'),'" + categoria.toUpperCase() + "')]");
         WebElement categoriaElemento = wait.until(ExpectedConditions.elementToBeClickable(categoriaLocator));
         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", categoriaElemento);

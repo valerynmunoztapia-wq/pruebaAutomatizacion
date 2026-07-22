@@ -28,7 +28,7 @@ public class DriverManager {
                    configuracionChrome.addArguments("--disable-gpu");
                    configuracionChrome.addArguments("--headless");
                    configuracionChrome.addArguments("--ignore-ssl-errors=yes");
-                   configuracionChrome.addArguments("--windows-size=1920x1080");
+                   configuracionChrome.addArguments("--window-size=1920,1080");
                }
                configuracionChrome.addArguments("--remote-allow-origins=yes");
                this.driver = new ChromeDriver(configuracionChrome);
