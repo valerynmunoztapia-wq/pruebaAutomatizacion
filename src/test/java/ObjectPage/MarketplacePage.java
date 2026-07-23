@@ -171,19 +171,33 @@ public class MarketplacePage extends BaseController {
 
     public boolean validarSubtotal() {
         try {
-            WebDriverWait wait = new WebDriverWait(
-                    DriverContext.getDriver(),
-                    Duration.ofSeconds(10));
-            wait.until(ExpectedConditions.visibilityOfElementLocated(miniCartContainer));
-            List<WebElement> subtotales = DriverContext.getDriver().findElements(
-                    By.xpath("//*[contains(text(),'TOTAL')]"));
+            List<WebElement> subtotales =
+                    DriverContext.getDriver()
+                            .findElements(
+                                    By.cssSelector("td.monetary"));
             if (subtotales.isEmpty()) {
+                logger.info("No se encontraron subtotales");
                 return false;
             }
-            String subtotalActual = subtotales.get(0).getText().trim();
+
+            String subtotalActual =
+                    subtotales.get(0).getText().trim();
+            logger.info(
+                    "Subtotal inicial: "
+                            + subtotalAntesAumentar);
+
+            logger.info(
+                    "Subtotal actual: "
+                            + subtotalActual);
+
             return !subtotalActual.isEmpty()
-                    && !subtotalActual.equals(subtotalAntesAumentar);
-        } catch (TimeoutException e) {
+                    && !subtotalActual.equals(
+                    subtotalAntesAumentar);
+
+        } catch (Exception e) {
+            logger.warning(
+                    "Error validando subtotal: "
+                            + e.getMessage());
             return false;
         }
     }
@@ -273,7 +287,11 @@ public class MarketplacePage extends BaseController {
             // Intento 1: Botón + en mini-carrito
             try {
                 int cantidadAntes = obtenerCantidadDetectada();
-                cantidadAntesAumentar = Math.max(cantidadAntes, 1);
+                if (cantidadAntes < 1) {
+                    cantidadAntes = 1;
+                }
+                int cantidadObjetivo = Math.max(cantidadAntes + 1, 2);
+                cantidadAntesAumentar = cantidadAntes;
                 logger.info("Cantidad antes: " + cantidadAntes);
 
                 WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(10));
@@ -317,8 +335,14 @@ public class MarketplacePage extends BaseController {
                 int cantidadDespues = obtenerCantidadDetectada();
                 logger.info("Cantidad después: " + cantidadDespues + " | Subtotal cambió: " + subtotalCambioDetectado());
 
-                if (subtotalCambioDetectado() || cantidadDespues > cantidadAntes) {
+                if (cantidadDespues >= cantidadObjetivo
+                        || esperarCantidadEsperada(cantidadObjetivo, 6)
+                        || subtotalCambioDetectado()) {
                     logger.info("Incremento detectado en mini-carrito");
+                    return;
+                }
+                if (setearCantidadEnInput(cantidadObjetivo) || setearCantidadEnSelect(cantidadObjetivo)) {
+                    logger.info("Cantidad ajustada en mini-carrito a: " + cantidadObjetivo);
                     return;
                 }
             } catch (Exception e1) {
@@ -336,29 +360,71 @@ public class MarketplacePage extends BaseController {
                     "button[class*='increment']," +
                     "button[data-testid='increment-button']");
 
-            WebElement btnCarrito = null;
-            try {
-                btnCarrito = wait.until(ExpectedConditions.elementToBeClickable(selectoresIncremento));
-            } catch (TimeoutException te) {
-                logger.warning("Botón + no encontrado en carrito completo, probando input...");
-            }
-
             int cantidadAntesCarrito = obtenerCantidadDetectada();
-            cantidadAntesAumentar = Math.max(cantidadAntesCarrito, 1);
-
-            if (btnCarrito != null) {
-                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btnCarrito);
-                logger.info("Click en botón + del carrito completo");
-            } else {
-                // Intento 2b: input de cantidad en carrito completo
-                WebElement inputCarrito = wait.until(ExpectedConditions.elementToBeClickable(
-                        By.cssSelector("input.item-quantity-change, input[name='quantity'], input[class*='quantity']")));
-                ((JavascriptExecutor) driver).executeScript("arguments[0].value='';", inputCarrito);
-                inputCarrito.sendKeys("2");
-                inputCarrito.sendKeys(Keys.ENTER);
-                logger.info("Cantidad seteada vía input en carrito completo");
+            if (cantidadAntesCarrito < 1) {
+                cantidadAntesCarrito = 1;
             }
+            int cantidadObjetivoCarrito = Math.max(cantidadAntesCarrito + 1, 2);
+            cantidadAntesAumentar = cantidadAntesCarrito;
+            boolean aumentoAplicado = false;
+            for (int intento = 0; intento < 3 && !aumentoAplicado; intento++) {
+                WebElement itemCarrito = obtenerItemCarritoVisible();
+                if (itemCarrito != null) {
+                    aumentoAplicado =
+                            incrementarEnItemCarrito(
+                                    itemCarrito,
+                                    cantidadObjetivoCarrito
+                            );
+                    if (!aumentoAplicado) {
 
+                        // Reobtener el item por si el DOM cambió
+                        itemCarrito = obtenerItemCarritoVisible();
+                        if (itemCarrito != null) {
+                            aumentoAplicado =
+                                    setearCantidadEnItemCarrito(
+                                            itemCarrito,
+                                            cantidadObjetivoCarrito
+                                    );
+                        }
+                    }
+                }
+                if (!aumentoAplicado) {
+                    WebElement btnCarrito =
+                            obtenerElementoVisible(
+                                    selectoresIncremento,
+                                    6
+                            );
+                    if (btnCarrito != null) {
+                        ((JavascriptExecutor) driver)
+                                .executeScript(
+                                        "arguments[0].click();",
+                                        btnCarrito
+                                );
+                        logger.info(
+                                "Click en botón + del carrito completo"
+                        );
+                        aumentoAplicado =
+                                esperarCantidadEsperada(
+                                        cantidadObjetivoCarrito,
+                                        8
+                                )
+                                        || subtotalCambioDetectado();
+                    } else {
+                        logger.warning(
+                                "Botón + no encontrado en carrito completo, probando input..."
+                        );
+                    }
+                }
+                if (!aumentoAplicado) {
+                    aumentoAplicado =
+                            setearCantidadEnInput(
+                                    cantidadObjetivoCarrito
+                            )
+                                    || setearCantidadEnSelect(
+                                    cantidadObjetivoCarrito
+                            );
+                }
+            }
             final int cantidadAntesCarritoFinal = cantidadAntesCarrito;
             try {
                 wait.until(d -> obtenerCantidadDetectada() > cantidadAntesCarritoFinal
@@ -379,6 +445,7 @@ public class MarketplacePage extends BaseController {
             if (cantidadEsperada < 1) {
                 return false;
             }
+            esperarCantidadEsperada(cantidadEsperada, 6);
             // Abrir mini-carrito si no está visible (puede que estemos en carrito completo)
             if (!estaVisibleMiniCarrito()) {
                 try {
@@ -480,17 +547,32 @@ public class MarketplacePage extends BaseController {
         }
     }
     public void irAlMiniCarrito() {
-        By miniCartButton = By.cssSelector("div.vtex-minicart-2-x-openIconContainer");
-        WebElement botonMiniCarrito = wait.until(ExpectedConditions.elementToBeClickable(miniCartButton));
-        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", botonMiniCarrito);
-        wait.until(ExpectedConditions.visibilityOfElementLocated(miniCartContainer));
-        List<WebElement> subtotales = driver.findElements(
-                By.xpath("//*[contains(text(),'TOTAL')]"));
+
+        By miniCartButton =
+                By.cssSelector(
+                        "div.vtex-minicart-2-x-openIconContainer");
+        WebElement botonMiniCarrito =
+                wait.until(
+                        ExpectedConditions.elementToBeClickable(
+                                miniCartButton));
+        ((JavascriptExecutor) driver)
+                .executeScript(
+                        "arguments[0].click();",
+                        botonMiniCarrito);
+        wait.until(
+                ExpectedConditions.visibilityOfElementLocated(
+                        miniCartContainer));
+        List<WebElement> subtotales =
+                driver.findElements(
+                        By.cssSelector("td.monetary"));
         if (!subtotales.isEmpty()) {
-            subtotalAntesAumentar = subtotales.get(0).getText().trim();
+            subtotalAntesAumentar =
+                    subtotales.get(0).getText().trim();
+            logger.info(
+                    "Subtotal inicial: "
+                            + subtotalAntesAumentar);
         }
     }
-
     public void escribirCorreo(String correo) {
         WebElement input = obtenerInputCorreo();
         input.clear();
@@ -581,7 +663,6 @@ public class MarketplacePage extends BaseController {
             return false;
         }
     }
-
     public void ingresarAlLogin() {
         cerrarPopup();
         WebElement miCuenta = wait.until(ExpectedConditions.elementToBeClickable(
@@ -636,7 +717,9 @@ public class MarketplacePage extends BaseController {
                         ".vtex-minicart-2-x-minicartProductListContainer input[name='quantity'], " +
                         ".vtex-minicart-2-x-minicartProductListContainer input.cartSkuQuantity, " +
                         ".vtex-minicart-2-x-minicartProductListContainer .item-quantity-value, " +
-                        ".vtex-minicart-2-x-minicartProductListContainer [class*='quantitySelector'] input"));
+                        ".vtex-minicart-2-x-minicartProductListContainer [class*='quantitySelector'] input, " +
+                        ".vtex-minicart-2-x-minicartProductListContainer select[name*='quantity'], " +
+                        ".vtex-minicart-2-x-minicartProductListContainer select[class*='quantity']"));
         for (WebElement cantidad : cantidadesCarrito) {
             if (!cantidad.isDisplayed()) {
                 continue;
@@ -668,9 +751,9 @@ public class MarketplacePage extends BaseController {
         try {
             String cantidad = obtenerCantidadActual();
             int parsed = parseCantidad(cantidad);
-            return parsed > 0 ? parsed : 1; // Retornar 1 si no encuentra nada
+            return parsed > 0 ? parsed : -1;
         } catch (Exception e) {
-            return 1; // Default a 1 si hay error
+            return -1;
         }
     }
 
@@ -681,6 +764,8 @@ public class MarketplacePage extends BaseController {
                         ".vtex-minicart-2-x-minicartProductListContainer input.cartSkuQuantity, " +
                         ".vtex-minicart-2-x-minicartProductListContainer .item-quantity-value, " +
                         ".vtex-minicart-2-x-minicartProductListContainer [class*='quantitySelector'] input, " +
+                        ".vtex-minicart-2-x-minicartProductListContainer select[name*='quantity'], " +
+                        ".vtex-minicart-2-x-minicartProductListContainer select[class*='quantity'], " +
                         ".vtex-minicart-2-x-minicartProductListContainer [class*='quantity'] [class*='value']"));
         for (WebElement control : controlesCantidad) {
             if (!control.isDisplayed()) {
@@ -710,26 +795,156 @@ public class MarketplacePage extends BaseController {
         return false;
     }
 
+    private boolean setearCantidadEnSelect(int cantidadObjetivo) {
+        By selectCantidad = By.cssSelector(
+                ".vtex-minicart-2-x-minicartProductListContainer select[name*='quantity'], " +
+                ".vtex-minicart-2-x-minicartProductListContainer select[class*='quantity'], " +
+                "select[name*='quantity'], " +
+                "select[class*='quantity']");
+        List<WebElement> selects = driver.findElements(selectCantidad);
+        for (WebElement select : selects) {
+            try {
+                if (!select.isDisplayed() || !select.isEnabled()) {
+                    continue;
+                }
+                ((JavascriptExecutor) driver).executeScript(
+                        "arguments[0].value = arguments[1];" +
+                        "arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", select, String.valueOf(cantidadObjetivo));
+                if (esperarCantidadEsperada(cantidadObjetivo, 8) || subtotalCambioDetectado()) {
+                    logger.info("Cantidad seteada vía select: " + cantidadObjetivo);
+                    return true;
+                }
+            } catch (StaleElementReferenceException ignored) {
+            }
+        }
+        return false;
+    }
+
+    private WebElement obtenerItemCarritoVisible() {
+        By[] candidatos = new By[] {
+                By.cssSelector("tr.product-item"),
+                By.cssSelector(".cart-items .item"),
+                By.cssSelector(".cart-template .item"),
+                By.cssSelector(".vtex-product-list-0-x-productListItem")
+        };
+        for (By candidato : candidatos) {
+            List<WebElement> items = driver.findElements(candidato);
+            for (WebElement item : items) {
+                try {
+                    if (item.isDisplayed()) {
+                        return item;
+                    }
+                } catch (StaleElementReferenceException ignored) {
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean incrementarEnItemCarrito(WebElement itemCarrito, int cantidadObjetivo) {
+        By incrementoEnItem = By.cssSelector(
+                "a.item-quantity-change-increment, " +
+                "button.item-quantity-change-increment, " +
+                "button[class*='Increment'], " +
+                "button[class*='increment'], " +
+                "button[data-testid='increment-button']");
+        List<WebElement> botones = itemCarrito.findElements(incrementoEnItem);
+        for (WebElement boton : botones) {
+            try {
+                if (!boton.isDisplayed() || !boton.isEnabled()) {
+                    continue;
+                }
+                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", boton);
+                logger.info("Click en botón + del item en carrito");
+                if (esperarCantidadEsperada(cantidadObjetivo, 8) || subtotalCambioDetectado()) {
+                    return true;
+                }
+            } catch (StaleElementReferenceException ignored) {
+            }
+        }
+        return false;
+    }
+
+    private boolean setearCantidadEnItemCarrito(WebElement itemCarrito, int cantidadObjetivo) {
+        By controlesCantidad = By.cssSelector(
+                "input.item-quantity-change, " +
+                "input[name='quantity'], " +
+                "input[type='number'], " +
+                "input[class*='quantity'], " +
+                "select[name*='quantity'], " +
+                "select[class*='quantity']");
+        List<WebElement> controles = itemCarrito.findElements(controlesCantidad);
+        for (WebElement control : controles) {
+            try {
+                if (!control.isDisplayed() || !control.isEnabled()) {
+                    continue;
+                }
+                String tag = control.getTagName();
+                if ("select".equalsIgnoreCase(tag)) {
+                    ((JavascriptExecutor) driver).executeScript(
+                            "arguments[0].value = arguments[1];" +
+                            "arguments[0].dispatchEvent(new Event('change', {bubbles:true}));",
+                            control, String.valueOf(cantidadObjetivo));
+                } else {
+                    ((JavascriptExecutor) driver).executeScript("arguments[0].focus();", control);
+                    control.sendKeys(Keys.chord(Keys.CONTROL, "a"));
+                    control.sendKeys(Keys.DELETE);
+                    control.sendKeys(String.valueOf(cantidadObjetivo));
+                    ((JavascriptExecutor) driver).executeScript(
+                            "arguments[0].dispatchEvent(new Event('input', {bubbles:true}));" +
+                            "arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", control);
+                    control.sendKeys(Keys.ENTER);
+                }
+                logger.info("Cantidad seteada en item del carrito: " + cantidadObjetivo);
+                if (esperarCantidadEsperada(cantidadObjetivo, 8) || subtotalCambioDetectado()) {
+                    return true;
+                }
+            } catch (StaleElementReferenceException ignored) {
+            }
+        }
+        return false;
+    }
+
     private boolean subtotalCambioDetectado() {
-        if (subtotalAntesAumentar == null || subtotalAntesAumentar.isBlank()) {
+        if (subtotalAntesAumentar == null
+                || subtotalAntesAumentar.isBlank()) {
             return false;
         }
-        List<WebElement> subtotales = driver.findElements(By.xpath("//*[contains(text(),'TOTAL')]"));
+        List<WebElement> subtotales =
+                driver.findElements(
+                        By.cssSelector("td.monetary")
+            );
         if (subtotales.isEmpty()) {
             return false;
         }
-        String subtotalActual = subtotales.get(0).getText().trim();
-        return !subtotalActual.isBlank() && !subtotalActual.equals(subtotalAntesAumentar);
+        String subtotalActual =
+        subtotales.get(0).getText().trim();
+        logger.info(
+                "Subtotal antes: "
+                        + subtotalAntesAumentar
+        );
+
+        logger.info(
+                "Subtotal actual: "
+                        + subtotalActual
+        );
+        return !subtotalActual.equals(subtotalAntesAumentar);
     }
 
     private int obtenerCantidadDetectada() {
         try {
             int cantidadMiniCarrito = obtenerCantidadActualNumerica();
             if (cantidadMiniCarrito > 0) {
+                logger.info(
+                        "Cantidad detectada en mini carrito "
+                                + cantidadMiniCarrito
+                );
                 return cantidadMiniCarrito;
             }
 
             By[] candidatos = new By[] {
+                    By.cssSelector("input[id^='item-quantity-']"),
+                    By.cssSelector("input[type='tel']"),
                     By.cssSelector(".vtex-minicart-2-x-minicartProductListContainer input[type='text']"),
                     By.cssSelector(".vtex-minicart-2-x-minicartProductListContainer input[name='quantity']"),
                     By.cssSelector(".vtex-minicart-2-x-minicartProductListContainer input.item-quantity-change"),
@@ -737,7 +952,9 @@ public class MarketplacePage extends BaseController {
                     By.cssSelector("input.cartSkuQuantity"),
                     By.cssSelector("input.item-quantity-change"),
                     By.cssSelector("input[name='quantity']"),
-                    By.cssSelector(".item-quantity-value")
+                    By.cssSelector(".item-quantity-value"),
+                    By.cssSelector("select[name*='quantity']"),
+                    By.cssSelector("select[class*='quantity']")
             };
 
             for (By candidato : candidatos) {
@@ -754,6 +971,7 @@ public class MarketplacePage extends BaseController {
                             }
                             int cantidad = parseCantidad(valor);
                             if (cantidad > 0) {
+                                logger.info("cantidad detectada:" +cantidad);
                                 return cantidad;
                             }
                         } catch (StaleElementReferenceException ignored) {
@@ -762,9 +980,74 @@ public class MarketplacePage extends BaseController {
                 } catch (Exception ignored) {
                 }
             }
-            return 1; // Retornar 1 como default cuando inicia (1 producto agregado)
+            return -1;
         } catch (Exception e) {
-            return 1;
+            return -1;
+        }
+    }
+
+    private WebElement obtenerElementoVisible(By locator, int timeoutSegundos) {
+        try {
+            WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSegundos));
+            return shortWait.until(d -> {
+                List<WebElement> elementos = d.findElements(locator);
+                for (WebElement elemento : elementos) {
+                    try {
+                        if (elemento.isDisplayed() && elemento.isEnabled()) {
+                            return elemento;
+                        }
+                    } catch (StaleElementReferenceException ignored) {
+                    }
+                }
+                return null;
+            });
+        } catch (TimeoutException e) {
+            return null;
+        }
+    }
+
+    private boolean setearCantidadEnInput(int cantidadObjetivo) {
+        By inputCantidad = By.cssSelector(
+                ".vtex-minicart-2-x-minicartProductListContainer input[type='text'], " +
+                ".vtex-minicart-2-x-minicartProductListContainer input[type='number'], " +
+                ".vtex-minicart-2-x-minicartProductListContainer input[name='quantity'], " +
+                "input.item-quantity-change, " +
+                "input[type='number'], " +
+                "input[name='quantity'], " +
+                "input[class*='quantity']");
+        List<WebElement> inputs = driver.findElements(inputCantidad);
+        for (WebElement input : inputs) {
+            try {
+                if (!input.isDisplayed() || !input.isEnabled()) {
+                    continue;
+                }
+                ((JavascriptExecutor) driver).executeScript("arguments[0].focus();", input);
+                input.sendKeys(Keys.chord(Keys.CONTROL, "a"));
+                input.sendKeys(Keys.DELETE);
+                input.sendKeys(String.valueOf(cantidadObjetivo));
+                ((JavascriptExecutor) driver).executeScript(
+                        "arguments[0].dispatchEvent(new Event('input', {bubbles:true}));" +
+                        "arguments[0].dispatchEvent(new Event('change', {bubbles:true}));", input);
+                input.sendKeys(Keys.ENTER);
+                if (esperarCantidadEsperada(cantidadObjetivo, 8) || subtotalCambioDetectado()) {
+                    logger.info("Cantidad seteada vía input: " + cantidadObjetivo);
+                    return true;
+                }
+            } catch (StaleElementReferenceException ignored) {
+            }
+        }
+        return false;
+    }
+
+    private boolean esperarCantidadEsperada(int cantidadEsperada, int timeoutSegundos) {
+        try {
+            WebDriverWait shortWait = new WebDriverWait(driver, Duration.ofSeconds(timeoutSegundos));
+            return shortWait.until(d -> {
+                int cantidad = obtenerCantidadDetectada();
+                return cantidad == cantidadEsperada || existeCantidadEsperadaEnControles(cantidadEsperada);
+            });
+        } catch (TimeoutException e) {
+            return false;
         }
     }
 
