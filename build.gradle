@@ -4,6 +4,7 @@ plugins {
 
 group = 'org.example'
 version = '1.0-SNAPSHOT'
+buildDir = file(System.getProperty("user.home") + "\\.gradle-build\\pruebaAutomatizacion")
 
 repositories {
     mavenCentral()
@@ -28,6 +29,7 @@ dependencies {
     // Cucumber
     testImplementation 'io.cucumber:cucumber-java:7.14.0'
     testImplementation 'io.cucumber:cucumber-junit:7.14.0'
+    testImplementation 'io.github.bonigarcia:webdrivermanager:5.9.2'
 
     // JUnit 5
     testImplementation platform('org.junit:junit-bom:5.10.0')
@@ -44,6 +46,7 @@ dependencies {
 
 test {
     useJUnit()
+    include '**/*Test.class', '**/*Tests.class', '**/*TestCase.class', '**/Runner.class'
     testLogging {
         events "passed", "skipped", "failed"
     }

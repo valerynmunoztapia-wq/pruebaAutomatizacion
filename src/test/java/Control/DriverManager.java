@@ -1,12 +1,10 @@
 package Control;
 
 import Constant.Navegador;
-//import io.github.bonigarcia.wdm.WebDriverManager;
+import io.github.bonigarcia.wdm.WebDriverManager;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeOptions;
-
-import java.util.Map;
 
 public class DriverManager {
     private WebDriver driver;
@@ -19,7 +17,7 @@ public class DriverManager {
         switch (nav){
             case Chrome:
                System.out.println("Chrome seleccionado");
-               //WebDriverManager.chromedriver().setup();
+               WebDriverManager.chromedriver().setup();
                ChromeOptions configuracionChrome = new ChromeOptions();
                if(os.contains("linux")){
                    System.out.println(System.getProperty("user.name"));

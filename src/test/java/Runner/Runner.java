@@ -1,17 +1,24 @@
 package Runner;
 
-import io.cucumber.junit.Cucumber;
-import io.cucumber.junit.CucumberOptions;
-import org.junit.runner.RunWith;
+import io.cucumber.core.cli.Main;
+import org.junit.Assert;
+import org.junit.Test;
 
-@RunWith(Cucumber.class)
-@CucumberOptions(
-        features = "src/test/resources/features",
-        glue = {"StepDefinition"},
-        plugin = {"pretty", "html:target/cucumber-report.html"},
-        monochrome = true,
-        tags = "@Marketplace"
-)
 public class Runner {
 
+    @Test
+    public void Runner() {
+        byte exitStatus = Main.run(
+                new String[]{
+                        "--plugin", "pretty",
+                        "--plugin", "html:target/cucumber-report.html",
+                        "--glue", "StepDefinition",
+                        "--tags", "@MarketplaceF",
+                        "src/test/resources/features/Marketplace.feature"
+                },
+                Thread.currentThread().getContextClassLoader()
+        );
+
+        Assert.assertEquals("Falló la ejecución de Cucumber para MarketplaceF", 0, exitStatus);
+    }
 }
