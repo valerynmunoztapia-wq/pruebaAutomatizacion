@@ -12,9 +12,10 @@ public class Runner {
                 new String[]{
                         "--plugin", "pretty",
                         "--plugin", "html:target/cucumber-report.html",
+                        "--plugin", "junit:build/test-results/test/cucumber.xml",
                         "--glue", "StepDefinition",
-                        "--tags", "@MarketplaceF",
-                        "src/test/resources/features/Marketplace.feature"
+                        "--tags", "@Busqueda",
+                        "src/test/resources/features/MarketplaceF.feature"
                 },
                 Thread.currentThread().getContextClassLoader()
         );

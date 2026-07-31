@@ -120,3 +120,5 @@ Feature: Comprar producto en Audiomusica
     And escribo el correo "correo@gmail" en "checkout"
     And presiono continuar
     Then valido mensaje de correo invalido
+
+
