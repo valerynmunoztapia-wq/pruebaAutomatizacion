@@ -46,7 +46,7 @@ dependencies {
 
 test {
     useJUnit()
-    include '**/*Test.class', '**/*Tests.class', '**/*TestCase.class', '**/Runner.class'
+    include '**/*Test.class', '**/*Tests.class', '**/*TestCase.class', '**/Runner.class', '**/*RunnerTest.class'
     testLogging {
         events "passed", "skipped", "failed"
     }

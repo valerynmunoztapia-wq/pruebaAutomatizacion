@@ -4,9 +4,8 @@ import io.cucumber.core.cli.Main;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class Runner {
-
-    @Test
+public class Runner{
+@Test
     public void Runner() {
         byte exitStatus = Main.run(
                 new String[]{
@@ -14,7 +13,7 @@ public class Runner {
                         "--plugin", "html:target/cucumber-report.html",
                         "--plugin", "junit:build/test-results/test/cucumber.xml",
                         "--glue", "StepDefinition",
-                        "--tags", "@Busqueda",
+                        "--tags", "@MarketplaceF",
                         "src/test/resources/features/MarketplaceF.feature"
                 },
                 Thread.currentThread().getContextClassLoader()

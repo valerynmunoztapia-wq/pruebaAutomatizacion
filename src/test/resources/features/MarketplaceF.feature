@@ -67,7 +67,7 @@ Feature: Navegacion en Marketplace
     | bicicleta  |
     | celular    |
 
-@MarketplaceF @TC-007
+@MarketplaceF
   Scenario Outline: Filtrar productos por categoría
     Given abro el Marketplace sin iniciar sesión
     When selecciono la categoría de marketplace "<categoría>"

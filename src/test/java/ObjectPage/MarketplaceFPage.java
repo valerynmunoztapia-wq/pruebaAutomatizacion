@@ -7,8 +7,11 @@ import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import java.time.Duration;
+import java.text.Normalizer;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
@@ -251,20 +254,124 @@ public class MarketplaceFPage extends BaseController {
     }
 
     public void seleccionarCategoria(String categoria) {
-        By categoriaBtn = By.xpath("//span[text()='" + categoria + "']");
-        WebElement elemento = wait.until(ExpectedConditions.visibilityOfElementLocated(categoriaBtn));
+        String categoriaNormalizada = normalizarTexto(categoria);
+        List<String> etiquetas = new ArrayList<>();
+        etiquetas.add(categoria);
 
-        // Scroll para asegurar visibilidad
-        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", elemento);
+        String alternativaIdioma = obtenerAliasCategoria(categoriaNormalizada);
+        if (!alternativaIdioma.isEmpty()) {
+            etiquetas.add(alternativaIdioma);
+        }
 
-        // Click con JS para evitar interceptación
+        WebElement elemento = buscarCategoriaClickable(etiquetas);
+        if (elemento == null) {
+            expandirCategoriasSiDisponible();
+            elemento = buscarCategoriaClickable(etiquetas);
+        }
+
+        if (elemento == null) {
+            throw new TimeoutException("No se encontró la categoría visible/clickable: " + categoria);
+        }
+
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block:'center'});", elemento);
         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", elemento);
         System.out.println("✓ Categoría seleccionada: " + categoria);
     }
 
     public boolean validarResultadosPorCategoria(String categoria) {
-        String pageSource = driver.getPageSource().toLowerCase();
-        return pageSource.contains(categoria.toLowerCase());
+        String sourceNormalizado = normalizarTexto(driver.getPageSource());
+        String categoriaNormalizada = normalizarTexto(categoria);
+        if (sourceNormalizado.contains(categoriaNormalizada)) {
+            return true;
+        }
+
+        String alias = obtenerAliasCategoria(categoriaNormalizada);
+        return !alias.isEmpty() && sourceNormalizado.contains(alias);
+    }
+
+    private WebElement buscarCategoriaClickable(List<String> etiquetas) {
+        for (String etiqueta : etiquetas) {
+            String texto = etiqueta == null ? "" : etiqueta.trim();
+            if (texto.isEmpty()) {
+                continue;
+            }
+
+            String textoXpath = escaparTextoXPath(texto);
+            String textoNormalizado = normalizarTexto(texto);
+            By[] locators = {
+                    By.xpath("//span[normalize-space(.)=" + textoXpath + "]"),
+                    By.xpath("//a[normalize-space(.)=" + textoXpath + "]"),
+                    By.xpath("//button[normalize-space(.)=" + textoXpath + "]"),
+                    By.xpath("//*[self::span or self::a or self::div or self::button][contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúü'), '" + textoNormalizado + "')]"),
+                    By.xpath("//*[contains(translate(@aria-label, 'ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÚÜ', 'abcdefghijklmnopqrstuvwxyzáéíóúü'), '" + textoNormalizado + "')]")
+            };
+
+            for (By locator : locators) {
+                try {
+                    return new WebDriverWait(driver, Duration.ofSeconds(4))
+                            .until(ExpectedConditions.elementToBeClickable(locator));
+                } catch (Exception ignored) {
+                    // Intentar siguiente variante
+                }
+            }
+        }
+        return null;
+    }
+
+    private void expandirCategoriasSiDisponible() {
+        By[] botonesExpandir = {
+                By.xpath("//span[contains(.,'Ver más') or contains(.,'Ver mas')]"),
+                By.xpath("//span[contains(.,'Mostrar más') or contains(.,'Mostrar mas')]"),
+                By.xpath("//span[contains(.,'See more')]"),
+                By.xpath("//*[contains(@aria-label,'Ver más') or contains(@aria-label,'Ver mas') or contains(@aria-label,'See more')]")
+        };
+
+        for (By locator : botonesExpandir) {
+            try {
+                WebElement boton = new WebDriverWait(driver, Duration.ofSeconds(2))
+                        .until(ExpectedConditions.elementToBeClickable(locator));
+                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", boton);
+                return;
+            } catch (Exception ignored) {
+                // Intentar siguiente botón posible
+            }
+        }
+    }
+
+    private String normalizarTexto(String texto) {
+        String base = texto == null ? "" : texto;
+        String sinTildes = Normalizer.normalize(base, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return sinTildes.toLowerCase(Locale.ROOT);
+    }
+
+    private String obtenerAliasCategoria(String categoriaNormalizada) {
+        switch (categoriaNormalizada) {
+            case "hogar":
+                return "home";
+            case "ropa":
+                return "clothing";
+            case "electronica":
+                return "electronics";
+            default:
+                return "";
+        }
+    }
+
+    private String escaparTextoXPath(String valor) {
+        if (!valor.contains("'")) {
+            return "'" + valor + "'";
+        }
+        String[] partes = valor.split("'");
+        StringBuilder xpath = new StringBuilder("concat(");
+        for (int i = 0; i < partes.length; i++) {
+            if (i > 0) {
+                xpath.append(",\"'\",");
+            }
+            xpath.append("'").append(partes[i]).append("'");
+        }
+        xpath.append(")");
+        return xpath.toString();
     }
 
     public void seleccionarPrimerResultado() {
