@@ -4,6 +4,7 @@ import Control.BaseController;
 import Control.ElementActions;
 import Control.WaitUtils;
 import org.openqa.selenium.*;
+import org.openqa.selenium.support.FindBy;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import java.time.Duration;
@@ -33,6 +34,10 @@ public class MarketplaceFPage extends BaseController {
     private By resultadosBusqueda = By.xpath("//img[@alt]");
     private By titlePagina = By.xpath("//title");
 
+    @SuppressWarnings("unused")
+    @FindBy(xpath = "//div[@role='button' and (contains(@aria-label,'Cerrar') or contains(@aria-label,'Close'))] | //button[contains(@aria-label,'Cerrar') or contains(@aria-label,'Close')]")
+    private WebElement btnCerrarPopupLogin;
+
 
     /**
      * Constructor que inicializa el Page Object
@@ -46,6 +51,7 @@ public class MarketplaceFPage extends BaseController {
     // ========== VALIDACIONES ==========
     public boolean validarPaginaPrincipal() {
         try {
+            cerrarPopup();
             String title = driver.getTitle();
             System.out.println("Título de página: " + title);
 
@@ -68,6 +74,7 @@ public class MarketplaceFPage extends BaseController {
     // ========== LOGIN ==========
     public void ingresarCredenciales(String nombre, String email, String password) {
         try {
+            cerrarPopup();
             // Esperar y escribir correo
             WebElement emailField = wait.until(
                     ExpectedConditions.visibilityOfElementLocated(txtEmail)
@@ -90,6 +97,7 @@ public class MarketplaceFPage extends BaseController {
     }
 
     public void clickLogin() {
+        cerrarPopup();
         // Fallback XPaths para cubrir idiomas y variaciones del botón
         By[] loginLocators = {
                 By.xpath("//button[.//span[text()='Iniciar sesión']]"),
@@ -145,6 +153,24 @@ public class MarketplaceFPage extends BaseController {
         }
     }
 
+    public void cerrarPopup() {
+        try {
+            if (!visualizarElemento(btnCerrarPopupLogin, 5)) {
+                return;
+            }
+
+            try {
+                btnCerrarPopupLogin.click();
+            } catch (WebDriverException clickException) {
+                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", btnCerrarPopupLogin);
+            }
+
+            System.out.println("✓ Popup de login cerrado");
+        } catch (TimeoutException | NoSuchElementException e) {
+            System.out.println("ℹ Popup de login no visible o ya cerrado");
+        }
+    }
+
     // Locator para mensaje de error de login
     private By mensajeError = By.xpath("//*[contains(text(),'La contraseña que ingresaste es incorrecta')]");
 
@@ -164,6 +190,7 @@ public class MarketplaceFPage extends BaseController {
     // ========== BÚSQUEDA ==========
     public void buscarProducto(String producto) {
         try {
+            cerrarPopup();
             System.out.println("→ Buscando producto: " + producto);
             WebElement searchBox = wait.until(ExpectedConditions.elementToBeClickable(inputBusqueda));
             searchBox.clear();
@@ -254,6 +281,7 @@ public class MarketplaceFPage extends BaseController {
     }
 
     public void seleccionarCategoria(String categoria) {
+        cerrarPopup();
         String categoriaNormalizada = normalizarTexto(categoria);
         List<String> etiquetas = new ArrayList<>();
         etiquetas.add(categoria);

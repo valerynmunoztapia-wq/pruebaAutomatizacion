@@ -42,6 +42,7 @@ public class MarketplaceFDefinition {
 
             // Espera a que la página cargue completamente
             WaitUtils.sleep(3);
+            marketplaceFPage.cerrarPopup();
             System.out.println("✓ Página abierta correctamente");
         } catch (Exception e) {
             System.err.println("✗ Error abriendo Marketplace: " + e.getMessage());
@@ -73,6 +74,7 @@ public class MarketplaceFDefinition {
             driver = DriverContext.getDriver();
             marketplaceFPage = new MarketplaceFPage(driver);
             WaitUtils.sleep(3);
+            marketplaceFPage.cerrarPopup();
             System.out.println("✓ Página de login abierta");
         } catch (Exception e) {
             System.err.println("✗ Error abriendo login: " + e.getMessage());
@@ -140,6 +142,7 @@ public class MarketplaceFDefinition {
 
             // Espera a que la página cargue
             WaitUtils.sleep(10);
+            marketplaceFPage.cerrarPopup();
             System.out.println("✓ Marketplace abierto sin sesión");
         } catch (Exception e) {
             System.err.println("✗ Error abriendo Marketplace: " + e.getMessage());
