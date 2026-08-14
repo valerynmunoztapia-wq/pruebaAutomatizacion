@@ -2,6 +2,8 @@ package ObjectPage;
 
 import Control.BaseController;
 import Control.DriverContext;
+import Control.ElementActions;
+import Control.WaitUtils;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
@@ -125,8 +127,9 @@ public class LeaveListPage extends BaseController {
     }
 
     public void selectSubUnit(String subUnit) {
+        dismissEmployeeAutocomplete();
         click(dropdownSubUnit);
-        click(By.xpath("//span[text()='" + subUnit + "']"));
+        click(By.xpath("//div[@role='listbox']//span[normalize-space()='" + subUnit + "']"));
     }
 
     public void safeClickSearch() {
@@ -267,5 +270,32 @@ public class LeaveListPage extends BaseController {
 
     public boolean noScriptExecuted() {
         return true;
+    }
+
+    private void dismissEmployeeAutocomplete() {
+        if (driver.findElements(listAutocomplete).isEmpty()) {
+            return;
+        }
+
+        WebElement employeeField = WaitUtils.waitForElementVisibility(driver, inputEmployeeName);
+        employeeField.sendKeys(Keys.ESCAPE);
+        wait.until(ExpectedConditions.invisibilityOfElementLocated(listAutocomplete));
+    }
+
+    private void click(By locator) {
+        ElementActions.click(driver, locator);
+    }
+
+    private void type(By locator, String text) {
+        ElementActions.sendText(driver, locator, text);
+    }
+
+    private void clear(By locator) {
+        WaitUtils.waitForElementVisibility(driver, locator).clear();
+    }
+
+    private void jsClick(By locator) {
+        WebElement element = WaitUtils.waitForElementClickable(driver, locator);
+        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", element);
     }
 }
