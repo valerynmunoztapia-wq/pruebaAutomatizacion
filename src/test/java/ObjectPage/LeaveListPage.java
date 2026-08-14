@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.util.List;
 
 public class LeaveListPage extends BaseController {
+    private static final int AUTOCOMPLETE_DISMISS_TIMEOUT_SECONDS = 2;
 
     private WebDriver driver;
     private WebDriverWait wait;
@@ -273,13 +274,29 @@ public class LeaveListPage extends BaseController {
     }
 
     private void dismissEmployeeAutocomplete() {
-        if (driver.findElements(listAutocomplete).isEmpty()) {
+        List<WebElement> visibleAutocompleteLists = driver.findElements(listAutocomplete)
+                .stream()
+                .filter(WebElement::isDisplayed)
+                .toList();
+
+        if (visibleAutocompleteLists.isEmpty()) {
             return;
         }
 
-        WebElement employeeField = WaitUtils.waitForElementVisibility(driver, inputEmployeeName);
-        employeeField.sendKeys(Keys.ESCAPE);
-        wait.until(ExpectedConditions.invisibilityOfElementLocated(listAutocomplete));
+        WebElement autocompleteList = visibleAutocompleteLists.get(0);
+        WebDriverWait closeAutocompleteWait = new WebDriverWait(driver, Duration.ofSeconds(AUTOCOMPLETE_DISMISS_TIMEOUT_SECONDS));
+        driver.switchTo().activeElement().sendKeys(Keys.ESCAPE);
+
+        try {
+            closeAutocompleteWait.until(ExpectedConditions.invisibilityOf(autocompleteList));
+        } catch (TimeoutException ignored) {
+            jsClick(By.tagName("body"));
+            try {
+                closeAutocompleteWait.until(ExpectedConditions.invisibilityOf(autocompleteList));
+            } catch (TimeoutException timeoutException) {
+                throw new IllegalStateException("Could not close the employee autocomplete before selecting the sub unit", timeoutException);
+            }
+        }
     }
 
     private void click(By locator) {
