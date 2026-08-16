@@ -2,10 +2,14 @@ package Runner;
 
 import io.cucumber.core.cli.Main;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 /**
- * Esta clase es ahora un programa Java ejecutable que lanza las pruebas de Cucumber.
- * Para ejecutar, haz clic derecho en esta clase y selecciona "Run 'LeaveListRunner.main()'".
- * Esto evita por completo los problemas del ejecutor de pruebas de Gradle.
+ * Ejecuta las pruebas de Cucumber de Leave List.
+ * En IntelliJ: clic derecho → Run 'LeaveListRunner.main()'
+ * Con tags (ej. solo test-18): pasa argumentos "--tags" "@test-18"
  */
 public class LeaveListRunner {
 
@@ -14,13 +18,24 @@ public class LeaveListRunner {
         System.out.println("INICIANDO EJECUCIÓN DE CUCUMBER DIRECTAMENTE");
         System.out.println("====================================================");
 
+        List<String> cucumberArgs = new ArrayList<>(Arrays.asList(
+                "--plugin", "pretty",
+                "--plugin", "html:target/leave-list-report.html",
+                "--glue", "StepDefinition"
+        ));
+
+        // Permite filtrar: --tags @test-18
+        if (args != null && args.length > 0) {
+            cucumberArgs.addAll(Arrays.asList(args));
+        } else {
+            cucumberArgs.add("--tags");
+            cucumberArgs.add("@Leave");
+        }
+
+        cucumberArgs.add("src/test/resources/features/LeaveList.feature");
+
         byte exitStatus = Main.run(
-                new String[]{
-                        "--plugin", "pretty",
-                        "--plugin", "html:target/leave-list-report.html",
-                        "--glue", "StepDefinition",
-                        "src/test/resources/features/LeaveList.feature"
-                },
+                cucumberArgs.toArray(new String[0]),
                 Thread.currentThread().getContextClassLoader()
         );
 
@@ -28,7 +43,6 @@ public class LeaveListRunner {
         System.out.println("EJECUCIÓN DE CUCUMBER FINALIZADA CON CÓDIGO: " + exitStatus);
         System.out.println("====================================================");
 
-        // Forzar la salida del sistema para asegurar que el proceso termine.
         System.exit(exitStatus);
     }
 }

@@ -21,8 +21,9 @@ tasks.withType(JavaCompile).configureEach {
 }
 
 dependencies {
-    //  ELIMINADA: Selenium ya no es necesario
-    // testImplementation 'org.seleniumhq.selenium:selenium-java:4.30.0'
+    // Selenium: necesario para pruebas UI (Leave List, Marketplace, etc.)
+    testImplementation 'org.seleniumhq.selenium:selenium-java:4.30.0'
+    testImplementation 'io.github.bonigarcia:webdrivermanager:5.9.2'
 
     // Cucumber con JUnit 4 (Se mantiene intacto)
     testImplementation 'io.cucumber:cucumber-java:7.14.0'
@@ -30,6 +31,8 @@ dependencies {
 
     // JUnit 4 (Se mantiene intacto)
     testImplementation 'junit:junit:4.13.2'
+    // JUnit 5 assertions usadas en BaseController / páginas
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
 
     // --- NUEVO: Librerías para API REST ---
 
@@ -51,5 +54,16 @@ test {
     include '**/*Test.class', '**/*Tests.class', '**/*TestCase.class', '**/Runner.class', '**/*RunnerTest.class'
     testLogging {
         events "passed", "skipped", "failed"
+    }
+}
+
+tasks.register('runLeaveList', JavaExec) {
+    group = 'verification'
+    description = 'Ejecuta LeaveList.feature vía LeaveListRunner'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'Runner.LeaveListRunner'
+    // Ejemplo: ./gradlew runLeaveList --args="--tags @test-18"
+    if (project.hasProperty('cucumberArgs')) {
+        args project.property('cucumberArgs').toString().split(' ')
     }
 }

@@ -22,7 +22,8 @@ public class Hooks {
     private static final int MAX_SCREENSHOT_ATTEMPTS = 3;
 
     static {
-        tomarCapturaPantalla = System.getProperty("evidence", "fullEvidence");
+        // Por defecto solo captura en fallos (más rápido). Usa -Devidence=fullEvidence para todo.
+        tomarCapturaPantalla = System.getProperty("evidence", "onFailure");
     }
 
     /**

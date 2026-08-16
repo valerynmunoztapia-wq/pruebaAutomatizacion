@@ -19,6 +19,18 @@ public class DriverManager {
                System.out.println("Chrome seleccionado");
                WebDriverManager.chromedriver().setup();
                ChromeOptions configuracionChrome = new ChromeOptions();
+                // === CONFIGURACIÓN AVANZADA PARA CORREGIR LOS COLORES VERDE/VIOLETA ===
+                configuracionChrome.addArguments("--force-dark-mode=false");
+                configuracionChrome.addArguments("--blink-settings=forceDarkModeEnabled=false");
+                configuracionChrome.addArguments("--disable-features=DarkMode");
+
+                // Desactiva la aceleración por hardware (Suele causar el bug de tinte verde/violeta)
+                configuracionChrome.addArguments("--disable-gpu");
+                configuracionChrome.addArguments("--disable-software-rasterizer");
+
+                // Fuerza a Chrome a ignorar perfiles antiguos y arrancar totalmente limpio
+                configuracionChrome.addArguments("--guest");
+                configuracionChrome.addArguments("--incognito");
                if(os.contains("linux")){
                    System.out.println(System.getProperty("user.name"));
                    configuracionChrome.addArguments("--disable-dev-shm-usage");

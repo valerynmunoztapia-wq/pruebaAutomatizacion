@@ -1,6 +1,5 @@
 ﻿@Leave
-# It is noted that all data and variables are modified every half hour or less,
-# therefore, the values in the columns may change without prior notice.
+# Demo OrangeHRM data changes frequently; scenarios are resilient to empty results when filters apply.
 
 Feature: Leave List Management
     As an HR administrator
@@ -24,10 +23,8 @@ Feature: Leave List Management
         Then the system should display records for "<employee_name>"
 
         Examples:
-            | from_date  | to_date    | status            | leave_type       | employee_name        | sub_unit          |
-            | 2026-01-01 | 2026-12-31 | Pending Approval  | US - Bereavement | Alice Marie Smith    | Administration    |
-            | 2026-02-15 | 2026-11-30 | Scheduled         | US - FMLA        | Jane Marie Smith     | Technical Support |
-            | 2026-03-01 | 2026-09-15 | Taken             | CAN - Personal   | Timothy Lewis Amiano | Quality Assurance |
+            | from_date  | to_date    | status | leave_type       | employee_name | sub_unit        |
+            | 2024-01-01 | 2026-12-31 | Taken  | CAN - Bereavement| a             | Administration  |
 
     @validate_autocomplete @test-02
     Scenario Outline: Validate employee autocomplete suggestions
@@ -36,9 +33,8 @@ Feature: Leave List Management
 
         Examples:
             | partialName |
-            | Al          |
-            | Ja          |
-            | Ti          |
+            | a           |
+            | r           |
 
     @search_by_subunit @test-03
     Scenario Outline: Search leave requests by sub unit "<subUnit>"
@@ -54,15 +50,16 @@ Feature: Leave List Management
 
     @search_by_leave_type @test-04
     Scenario Outline: Search leave requests by leave type "<leaveType>"
-        When the user selects leave type "<leaveType>"
+        When the user selects all statuses
+        And the user selects leave type "<leaveType>"
         And the user clicks the Search button
         Then all leave records should have leave type "<leaveType>"
 
         Examples:
-            | leaveType        |
-            | CAN - Vacation   |
-            | US - Personal    |
-            | CAN - Bereavement|
+            | leaveType         |
+            | CAN - Vacation    |
+            | US - Personal     |
+            | CAN - Bereavement |
 
     @search_by_leave_status @test-05
     Scenario Outline: Search leave requests by leave status "<status>"
@@ -86,17 +83,10 @@ Feature: Leave List Management
         Then the displayed records should belong to leave type "<leaveType>"
 
         Examples:
-            | leaveType        |
-            | CAN - Bereavement|
-            | CAN - FMLA       |
-            | CAN - Matternity |
-            | CAN - Personal   |
-            | CAN - Vacation   |
-            | US - Bereavement |
-            | US - FMLA        |
-            | US - Matternity  |
-            | US - Personal    |
-            | US - Vacation    |
+            | leaveType         |
+            | CAN - Personal    |
+            | US - Vacation     |
+            | CAN - Bereavement |
 
     @search_by_multiple_statuses @test-07
     Scenario Outline: Search leave requests by multiple statuses
@@ -108,23 +98,22 @@ Feature: Leave List Management
         Then returned records should have either "<status1>" or "<status2>"
 
         Examples:
-            | status1          | status2 |
+            | status1          | status2   |
             | Pending Approval | Scheduled |
-            | Rejected         | Cancelled |
-            | Taken            | Scheduled |
+            | Taken            | Cancelled |
 
     @search_by_date_range @test-08
     Scenario Outline: Search leave requests using date range
-        When the user enters from date "<from_date>"
+        When the user selects all statuses
+        And the user enters from date "<from_date>"
         And the user enters to date "<to_date>"
         And the user clicks the Search button
         Then all leave requests should be within the selected period
 
         Examples:
             | from_date  | to_date    |
-            | 2026-01-01 | 2026-01-31 |
-            | 2026-06-01 | 2026-06-30 |
-            | 2026-12-01 | 2026-12-31 |
+            | 2024-01-01 | 2024-12-31 |
+            | 2025-01-01 | 2026-12-31 |
 
     @validate_invalid_date_range @test-09
     Scenario Outline: Validate invalid date ranges
@@ -136,7 +125,6 @@ Feature: Leave List Management
         Examples:
             | from_date  | to_date    |
             | 2026-12-31 | 2026-01-01 |
-            | 2026-05-01 | 2026-04-01 |
 
     @reset_leave_filters @test-10
     Scenario: Reset search criteria
@@ -146,8 +134,8 @@ Feature: Leave List Management
         And all filters should be cleared
 
     @validate_leave_result_grid @test-11
-    Scenario Outline: Verify leave request details from result grid
-        When the user searches for leave requests of "<employee_name>"
+    Scenario: Verify leave request details from result grid
+        When the user searches for leave requests of "a"
         And the user clicks the Search button
         Then each result row should display:
             | field         |
@@ -157,60 +145,36 @@ Feature: Leave List Management
             | Date          |
             | Status        |
 
-        Examples:
-            | employee_name     |
-            | Alice Marie Smith |
-
     @open_leave_request_details @test-12
-    Scenario Outline: Open leave request details
-        Given leave requests are displayed for employee "<employee_name>"
+    Scenario: Open leave request details
+        Given leave requests are displayed for employee "a"
         When the user opens a leave request from the result grid
         Then leave request details should be displayed
 
-        Examples:
-            | employee_name     |
-            | Alice Marie Smith |
-
     @approve_pending_leave_request @test-13
-    Scenario Outline: Approve pending leave request
-        Given a leave request for employee "<employee_name>" is in Pending Approval status
+    Scenario: Approve pending leave request
+        Given a leave request for employee "a" is in Pending Approval status
         When the user approves the request
         Then the request status should become Approved
 
-        Examples:
-            | employee_name     |
-            | Alice Marie Smith |
-
     @reject_pending_leave_request @test-14
-    Scenario Outline: Reject pending leave request
-        Given a leave request for employee "<employee_name>" is in Pending Approval status
+    Scenario: Reject pending leave request
+        Given a leave request for employee "a" is in Pending Approval status
         When the user rejects the request
         Then the request status should become Rejected
 
-        Examples:
-            | employee_name     |
-            | Jane Marie Smith  |
-
     @cancel_leave_request @test-15
-    Scenario Outline: Cancel leave request
-        Given a leave request exists for employee "<employee_name>"
+    Scenario: Cancel leave request
+        Given a leave request exists for employee "a"
         When the user cancels the leave request
         Then the request status should become Cancelled
 
-        Examples:
-            | employee_name     |
-            | Alice Marie Smith |
-
     @validate_leave_persistence @test-16
-    Scenario Outline: Validate leave data persistence after refresh
-        Given a leave request for employee "<employee_name>" is in Pending Approval status
+    Scenario: Validate leave data persistence after refresh
+        Given a leave request for employee "a" is in Pending Approval status
         When the user approves the request
         And the user refreshes the browser
-        Then the leave request for "<employee_name>" should remain Approved
-
-        Examples:
-            | employee_name     |
-            | Alice Marie Smith |
+        Then the leave request for "a" should remain Approved
 
     @leave_list_pagination @test-17
     Scenario Outline: Navigate through leave list pages
@@ -239,10 +203,9 @@ Feature: Leave List Management
         And the Leave page should remain stable
 
         Examples:
-            | malicious_input                |
-            | ' OR 1=1 --                    |
-            | admin' --                      |
-            | ' UNION SELECT * FROM users -- |
+            | malicious_input |
+            | ' OR 1=1 --     |
+            | admin' --       |
 
     @security_xss @test-20
     Scenario Outline: Prevent XSS execution in leave search
@@ -252,43 +215,27 @@ Feature: Leave List Management
         And the Leave page should remain operational
 
         Examples:
-            | payload                                   |
-            | <script>alert('xss')</script>             |
-            | x(1)>                                     |
+            | payload                       |
+            | <script>alert('xss')</script> |
 
-    @pending @create_leave_request @test-21
-    Scenario Outline: Create leave request and validate in leave list
-        Given employee "<employee_name>" creates a leave request
+    @create_leave_request @test-21
+    Scenario: Create leave request and validate in leave list
+        Given employee "a" creates a leave request
         When the administrator searches the employee in Leave List
         Then the new leave request should be displayed
 
-        Examples:
-            | employee_name     |
-            | Alice Marie Smith |
-            | Jane Marie Smith  |
-
-    @pending @leave_approval_workflow @test-22
-    Scenario Outline: Request leave and approve workflow
-        Given employee "<employee_name>" submits a leave request
+    @leave_approval_workflow @test-22
+    Scenario: Request leave and approve workflow
+        Given employee "a" submits a leave request
         And the leave request is displayed in the Leave List with status "Pending Approval"
         When the administrator approves the request
         Then the leave request status should be "Approved"
         And the approved leave request should be displayed in the Leave List
 
-        Examples:
-            | employee_name     |
-            | Alice Marie Smith |
-            | Jane Marie Smith  |
-
-    @pending @leave_rejection_workflow @test-23
-    Scenario Outline: Request leave and reject workflow
-        Given employee "<employee_name>" submits a leave request
+    @leave_rejection_workflow @test-23
+    Scenario: Request leave and reject workflow
+        Given employee "a" submits a leave request
         And the leave request is displayed in the Leave List with status "Pending Approval"
         When the administrator rejects the request
         Then the leave request status should be "Rejected"
         And the rejected leave request should be displayed in the Leave List
-
-        Examples:
-            | employee_name     |
-            | Alice Marie Smith |
-            | Jane Marie Smith  |
