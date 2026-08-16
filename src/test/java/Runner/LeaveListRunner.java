@@ -21,6 +21,7 @@ public class LeaveListRunner {
         List<String> cucumberArgs = new ArrayList<>(Arrays.asList(
                 "--plugin", "pretty",
                 "--plugin", "html:target/leave-list-report.html",
+                "--plugin", "junit:target/cucumber-reports/Cucumber.xml",
                 "--glue", "StepDefinition"
         ));
 
