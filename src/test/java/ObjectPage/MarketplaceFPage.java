@@ -192,30 +192,36 @@ public class MarketplaceFPage extends BaseController {
         try {
             cerrarPopup();
             System.out.println("→ Buscando producto: " + producto);
-            WebElement searchBox = wait.until(ExpectedConditions.elementToBeClickable(inputBusqueda));
-            searchBox.clear();
-            searchBox.sendKeys(producto + Keys.ENTER);
+            String encoded = java.net.URLEncoder.encode(producto, StandardCharsets.UTF_8).replace("+", "%20");
+            String searchUrl = "https://www.facebook.com/marketplace/search/?query=" + encoded;
+            boolean redirigioABusqueda = false;
 
-            boolean redirigioABusqueda;
             try {
-                redirigioABusqueda = new WebDriverWait(driver, Duration.ofSeconds(8))
-                        .until(d -> {
-                            String url = d.getCurrentUrl();
-                            return url != null && (url.contains("search") || url.contains("query="));
-                        });
-            } catch (Exception ignored) {
-                redirigioABusqueda = false;
+                WebElement searchBox = new WebDriverWait(driver, Duration.ofSeconds(8))
+                        .until(ExpectedConditions.elementToBeClickable(inputBusqueda));
+                searchBox.clear();
+                searchBox.sendKeys(producto + Keys.ENTER);
+
+                try {
+                    redirigioABusqueda = new WebDriverWait(driver, Duration.ofSeconds(8))
+                            .until(d -> {
+                                String url = d.getCurrentUrl();
+                                return url != null && url.contains("marketplace") && (url.contains("search") || url.contains("query="));
+                            });
+                } catch (Exception ignored) {
+                    redirigioABusqueda = false;
+                }
+            } catch (TimeoutException e) {
+                System.out.println("⚠ Barra de búsqueda no clickable; se usará URL directa de búsqueda.");
             }
 
             if (!redirigioABusqueda) {
-                String encoded = java.net.URLEncoder.encode(producto, StandardCharsets.UTF_8).replace("+", "%20");
-                String searchUrl = "https://www.facebook.com/marketplace/search/?query=" + encoded;
                 driver.navigate().to(searchUrl);
             }
 
             new WebDriverWait(driver, Duration.ofSeconds(15)).until(d -> {
                 String url = d.getCurrentUrl();
-                return url != null && (url.contains("marketplace/search") || url.contains("query="));
+                return url != null && url.contains("marketplace") && (url.contains("search") || url.contains("query="));
             });
             WaitUtils.sleep(2);
             System.out.println("✓ Búsqueda realizada");
