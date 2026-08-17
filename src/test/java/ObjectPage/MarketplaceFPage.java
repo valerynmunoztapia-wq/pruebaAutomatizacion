@@ -192,26 +192,11 @@ public class MarketplaceFPage extends BaseController {
         try {
             cerrarPopup();
             System.out.println("→ Buscando producto: " + producto);
-            WebElement searchBox = wait.until(ExpectedConditions.elementToBeClickable(inputBusqueda));
-            searchBox.clear();
-            searchBox.sendKeys(producto + Keys.ENTER);
 
-            boolean redirigioABusqueda;
-            try {
-                redirigioABusqueda = new WebDriverWait(driver, Duration.ofSeconds(8))
-                        .until(d -> {
-                            String url = d.getCurrentUrl();
-                            return url != null && (url.contains("search") || url.contains("query="));
-                        });
-            } catch (Exception ignored) {
-                redirigioABusqueda = false;
-            }
-
-            if (!redirigioABusqueda) {
-                String encoded = java.net.URLEncoder.encode(producto, StandardCharsets.UTF_8).replace("+", "%20");
-                String searchUrl = "https://www.facebook.com/marketplace/search/?query=" + encoded;
-                driver.navigate().to(searchUrl);
-            }
+            // Navigate directly to the search URL to avoid timeouts on the search input element
+            String encoded = java.net.URLEncoder.encode(producto, StandardCharsets.UTF_8).replace("+", "%20");
+            String searchUrl = "https://www.facebook.com/marketplace/search/?query=" + encoded;
+            driver.navigate().to(searchUrl);
 
             new WebDriverWait(driver, Duration.ofSeconds(15)).until(d -> {
                 String url = d.getCurrentUrl();
