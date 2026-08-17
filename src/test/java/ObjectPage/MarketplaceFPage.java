@@ -403,13 +403,6 @@ public class MarketplaceFPage extends BaseController {
         return aliases;
     }
 
-    /** @deprecated use {@link #obtenerAliasesCategoria(String)} */
-    @Deprecated
-    private String obtenerAliasCategoria(String categoriaNormalizada) {
-        List<String> aliases = obtenerAliasesCategoria(categoriaNormalizada);
-        return aliases.isEmpty() ? "" : aliases.get(0);
-    }
-
     private String escaparTextoXPath(String valor) {
         if (!valor.contains("'")) {
             return "'" + valor + "'";
