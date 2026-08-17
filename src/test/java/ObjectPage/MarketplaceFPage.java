@@ -206,7 +206,7 @@ public class MarketplaceFPage extends BaseController {
                     redirigioABusqueda = new WebDriverWait(driver, Duration.ofSeconds(8))
                             .until(d -> {
                                 String url = d.getCurrentUrl();
-                                return url != null && url.contains("marketplace") && (url.contains("search") || url.contains("query="));
+                                return esUrlBusquedaMarketplace(url);
                             });
                 } catch (Exception ignored) {
                     redirigioABusqueda = false;
@@ -221,7 +221,7 @@ public class MarketplaceFPage extends BaseController {
 
             new WebDriverWait(driver, Duration.ofSeconds(15)).until(d -> {
                 String url = d.getCurrentUrl();
-                return url != null && url.contains("marketplace") && (url.contains("search") || url.contains("query="));
+                return esUrlBusquedaMarketplace(url);
             });
             WaitUtils.sleep(2);
             System.out.println("✓ Búsqueda realizada");
@@ -229,6 +229,10 @@ public class MarketplaceFPage extends BaseController {
             System.err.println("✗ Error al buscar producto: " + e.getMessage());
             throw new RuntimeException("Falló la búsqueda de producto: " + producto, e);
         }
+    }
+
+    private boolean esUrlBusquedaMarketplace(String url) {
+        return url != null && (url.contains("marketplace/search") || url.contains("marketplace/?query="));
     }
 
 
