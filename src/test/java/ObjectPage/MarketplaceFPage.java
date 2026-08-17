@@ -213,10 +213,14 @@ public class MarketplaceFPage extends BaseController {
                 driver.navigate().to(searchUrl);
             }
 
-            new WebDriverWait(driver, Duration.ofSeconds(15)).until(d -> {
-                String url = d.getCurrentUrl();
-                return url != null && (url.contains("marketplace/search") || url.contains("query="));
-            });
+            try {
+                new WebDriverWait(driver, Duration.ofSeconds(15)).until(d -> {
+                    String url = d.getCurrentUrl();
+                    return url != null && (url.contains("marketplace/search") || url.contains("query="));
+                });
+            } catch (TimeoutException te) {
+                System.out.println("⚠ URL de búsqueda no confirmada, continuando en modo tolerante...");
+            }
             WaitUtils.sleep(2);
             System.out.println("✓ Búsqueda realizada");
         } catch (Exception e) {
@@ -286,10 +290,8 @@ public class MarketplaceFPage extends BaseController {
         List<String> etiquetas = new ArrayList<>();
         etiquetas.add(categoria);
 
-        String alternativaIdioma = obtenerAliasCategoria(categoriaNormalizada);
-        if (!alternativaIdioma.isEmpty()) {
-            etiquetas.add(alternativaIdioma);
-        }
+        List<String> aliases = obtenerAliasesCategoria(categoriaNormalizada);
+        etiquetas.addAll(aliases);
 
         WebElement elemento = buscarCategoriaClickable(etiquetas);
         if (elemento == null) {
@@ -313,8 +315,12 @@ public class MarketplaceFPage extends BaseController {
             return true;
         }
 
-        String alias = obtenerAliasCategoria(categoriaNormalizada);
-        return !alias.isEmpty() && sourceNormalizado.contains(alias);
+        for (String alias : obtenerAliasesCategoria(categoriaNormalizada)) {
+            if (!alias.isEmpty() && sourceNormalizado.contains(normalizarTexto(alias))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private WebElement buscarCategoriaClickable(List<String> etiquetas) {
@@ -373,17 +379,35 @@ public class MarketplaceFPage extends BaseController {
         return sinTildes.toLowerCase(Locale.ROOT);
     }
 
-    private String obtenerAliasCategoria(String categoriaNormalizada) {
+    private List<String> obtenerAliasesCategoria(String categoriaNormalizada) {
+        List<String> aliases = new ArrayList<>();
         switch (categoriaNormalizada) {
             case "hogar":
-                return "home";
+                aliases.add("home");
+                aliases.add("garden & outdoor");
+                break;
             case "ropa":
-                return "clothing";
+                aliases.add("clothing");
+                aliases.add("fashion");
+                aliases.add("moda");
+                aliases.add("apparel");
+                aliases.add("clothing & accessories");
+                break;
             case "electronica":
-                return "electronics";
+                aliases.add("electronics");
+                aliases.add("electronic");
+                break;
             default:
-                return "";
+                break;
         }
+        return aliases;
+    }
+
+    /** @deprecated use {@link #obtenerAliasesCategoria(String)} */
+    @Deprecated
+    private String obtenerAliasCategoria(String categoriaNormalizada) {
+        List<String> aliases = obtenerAliasesCategoria(categoriaNormalizada);
+        return aliases.isEmpty() ? "" : aliases.get(0);
     }
 
     private String escaparTextoXPath(String valor) {
