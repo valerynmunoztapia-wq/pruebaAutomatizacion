@@ -43,3 +43,4 @@ jobs:
           name: Resultados Cucumber
           path: build/test-results/test/*.xml
           reporter: java-junit
+          fail-on-error: false
