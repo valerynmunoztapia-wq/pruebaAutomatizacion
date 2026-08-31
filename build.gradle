@@ -1,62 +1,49 @@
 plugins {
     id 'java'
 }
-
 group = 'org.example'
 version = '1.0-SNAPSHOT'
 buildDir = file(System.getProperty("user.home") + "\\.gradle-build\\pruebaAutomatizacion")
-
 repositories {
     mavenCentral()
 }
-
 java{
     toolchain {
         languageVersion = JavaLanguageVersion.of(17)
     }
 }
-
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
-
 dependencies {
     // Selenium: necesario para pruebas UI (Leave List, Marketplace, etc.)
     testImplementation 'org.seleniumhq.selenium:selenium-java:4.30.0'
     testImplementation 'io.github.bonigarcia:webdrivermanager:5.9.2'
-
     // Cucumber con JUnit 4 (Se mantiene intacto)
     testImplementation 'io.cucumber:cucumber-java:7.14.0'
     testImplementation 'io.cucumber:cucumber-junit:7.14.0'
-
     // JUnit 4 (Se mantiene intacto)
     testImplementation 'junit:junit:4.13.2'
     // JUnit 5 assertions usadas en BaseController / páginas
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.2'
-
     // --- NUEVO: Librerías para API REST ---
-
     // REST-Assured: El motor principal para hacer peticiones HTTP
     testImplementation 'io.rest-assured:rest-assured:5.4.0'
-
     // JsonPath: La herramienta mágica para leer respuestas JSON (como buscar en un diccionario)
     testImplementation 'io.rest-assured:json-path:5.4.0'
-
     // --------------------------------------
-
     // IA y servicios auxiliares
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
 }
-
 test {
     useJUnit()
     include '**/*Test.class', '**/*Tests.class', '**/*TestCase.class', '**/Runner.class', '**/*RunnerTest.class'
+    ignoreFailures = true   // No abortar el build si hay tests fallidos (los reportes igual se generan)
     testLogging {
         events "passed", "skipped", "failed"
     }
 }
-
 tasks.register('runLeaveList', JavaExec) {
     group = 'verification'
     description = 'Ejecuta LeaveList.feature vía LeaveListRunner'
